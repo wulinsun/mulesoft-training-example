@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd">
+    <http:listener-config name="american-flights-api-httpListenerConfig" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <apikit:config name="american-flights-api-config" raml="american-flights-api.raml" consoleEnabled="false" doc:name="Router"/>
+    <flow name="american-flights-api-main">
+        <http:listener config-ref="american-flights-api-httpListenerConfig" path="/api/*" doc:name="HTTP"/>
+        <apikit:router config-ref="american-flights-api-config" doc:name="APIkit Router"/>
+        <exception-strategy ref="american-flights-api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy"/>
+    </flow>
+    <flow name="american-flights-api-console">
+        <http:listener config-ref="american-flights-api-httpListenerConfig" path="/console/*" doc:name="HTTP"/>
+        <apikit:console config-ref="american-flights-api-config" doc:name="APIkit Console"/>
+    </flow>
+    <flow name="put:/flights/{ID}:application/json:american-flights-api-config">
+        <set-payload value="{&#xA;&quot;message&quot; : &quot;Flight updated (but not really)&quot;&#xA;}" doc:name="Set Payload"/>
+    </flow>
+    <flow name="delete:/flights/{ID}:american-flights-api-config">
+        <set-payload value="{&#xA;&quot;message&quot; : &quot;Flight deleted (but not really)&quot;&#xA;}" doc:name="Set Payload"/>
+    </flow>
+    <flow name="get:/flights:american-flights-api-config">
+        <set-payload value="[&#xA;{&#xA;&quot;ID&quot; : 1,&#xA;&quot;code&quot; : &quot;ER38sd&quot;,&#xA;&quot;price&quot; : 400,&#xA;&quot;departureDate&quot; : &quot;2017/07/26&quot;,&#xA;&quot;origin&quot; : &quot;CLE&quot;,&#xA;&quot;destination&quot; : &quot;SFO&quot;,&#xA;&quot;emptySeats&quot; : 0,&#xA;&quot;plane&quot; : {&#xA;&quot;type&quot; : &quot;Boeing 737&quot;,&#xA;&quot;totalSeats&quot; : 150&#xA;}&#xA;},&#xA;{&#xA;&quot;ID&quot; : 2,&#xA;&quot;code&quot; : &quot;ER45if&quot;,&#xA;&quot;price&quot; : 540.99,&#xA;&quot;departureDate&quot; : &quot;2017/07/27&quot;,&#xA;&quot;origin&quot; : &quot;SFO&quot;,&#xA;&quot;destination&quot; : &quot;ORD&quot;,&#xA;&quot;emptySeats&quot; : 54,&#xA;&quot;plane&quot; : {&#xA;&quot;type&quot; : &quot;Boeing 777&quot;,&#xA;&quot;totalSeats&quot; : 300&#xA;}&#xA;}&#xA;]" doc:name="Set Payload"/>
+    </flow>
+    <flow name="get:/flights/{ID}:american-flights-api-config">
+        <set-payload value="{&#xA;&quot;ID&quot; : 1,&#xA;&quot;code&quot; : &quot;ER38sd&quot;,&#xA;&quot;price&quot; : 400,&#xA;&quot;departureDate&quot; : &quot;2017/07/26&quot;,&#xA;&quot;origin&quot; : &quot;CLE&quot;,&#xA;&quot;destination&quot; : &quot;SFO&quot;,&#xA;&quot;emptySeats&quot; : 0,&#xA;&quot;plane&quot; : {&#xA;&quot;type&quot; : &quot;Boeing 737&quot;,&#xA;&quot;totalSeats&quot; : 150&#xA;}&#xA;}" doc:name="Set Payload"/>
+    </flow>
+    <flow name="post:/flights:application/json:american-flights-api-config">
+        <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+        <set-payload value="{&#xA;&quot;message&quot; : &quot;Flight added (but not really)&quot;&#xA;}" doc:name="Set Payload"/>
+    </flow>
+    <apikit:mapping-exception-strategy name="american-flights-api-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>

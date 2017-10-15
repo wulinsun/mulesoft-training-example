@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:ws="http://www.mulesoft.org/schema/mule/ws" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ws http://www.mulesoft.org/schema/mule/ws/current/mule-ws.xsd">
+    <sub-flow name="setCodeSubflow">
+        <set-variable variableName="code" value="#[(message.inboundProperties.'http.query.params'.code == empty) ? 'SFO' : message.inboundProperties.'http.query.params'.code]" doc:name="Set airport code"/>
+    </sub-flow>
+    <flow name="getUnitedFlightsFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/united" allowedMethods="GET" doc:name="HTTP"/>
+        <flow-ref name="setCodeSubflow" doc:name="setCodeSubflow"/>
+        <http:request config-ref="United_HTTP_Request_Configuration" path="/essentials/united/flights/{destination}" method="GET" doc:name="United REST Request" metadata:id="28a62c98-e01d-46fb-afe1-c90d7a3c3471">
+            <http:request-builder>
+                <http:uri-param paramName="destination" value="#[flowVars.code]"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Transform Message" metadata:id="c939751d-bc7a-4917-8f4b-2de750686189">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+payload.flights map ((flight , indexOfFlight) -> {
+	airline: flight.airlineName,
+	flightCode: flight.code,
+	fromAirportCode: flight.origin,
+	toAirportCode: flight.destination,
+	departureDate: flight.departureDate,
+	emptySeats: flight.emptySeats,
+	price: flight.price,
+	planeType: flight.planeType
+})]]></dw:set-payload>
+        </dw:transform-message>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="getAmericanFlightsFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/american" allowedMethods="GET" doc:name="HTTP"/>
+        <flow-ref name="setCodeSubflow" doc:name="setCodeSubflow"/>
+        <http:request config-ref="American_HTTP_Request_Configuration" path="/flights" method="GET" doc:name="American REST Request">
+            <http:request-builder>
+                <http:query-param paramName="destination" value="#[flowVars.code]"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Transform Message" metadata:id="d49e6a6b-0ca2-4a8f-96de-755f10b9b7d8">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+payload map ((payload01 , indexOfPayload01) -> {
+	airline: "American",
+	flightCode: payload01.code,
+	fromAirportCode: payload01.origin,
+	toAirportCode: payload01.destination,
+	departureDate: payload01.departureDate,
+	emptySeats: payload01.emptySeats,
+	totalSeats: payload01.plane.totalSeats,
+	price: payload01.price,
+	planeType: payload01.plane.type
+})]]></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+    <flow name="getDeltaFlightsFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/delta" allowedMethods="GET" doc:name="HTTP"/>
+        <flow-ref name="setCodeSubflow" doc:name="setCodeSubflow"/>
+        <dw:transform-message doc:name="Pass code">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace ns0 http://soap.training.mulesoft.com/
+---
+{
+	ns0#findFlight: {
+		destination: flowVars.code as :string
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <ws:consumer config-ref="Delta_Web_Service_Consumer" operation="findFlight" doc:name="Delta SOAP Request"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="1ade9105-dd25-4510-a83a-49c478fcc6d6">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+%namespace ns0 http://soap.training.mulesoft.com/
+---
+payload.ns0#findFlightResponse.*return map ((return , indexOfReturn) -> {
+	airline: return.airlineName,
+	flightCode: return.code,
+	fromAirportCode: return.origin,
+	toAirportCode: return.destination,
+	departureDate: return.departureDate,
+	emptySeats: return.emptySeats,
+	price: return.price,
+	planeType: return.planeType
+})]]></dw:set-payload>
+        </dw:transform-message>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>
